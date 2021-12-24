@@ -24,18 +24,20 @@ type Operator struct {
 }
 
 type Command struct {
-	Name          string
-	Operators     []*Operator
-	Flags         []*Flag // command 也可以有 flags
-	Desc          string
-	handlers      []func(string, *DCommand)
-	flagParamsMap map[string][]string
+	Name           string
+	Operators      []*Operator
+	Flags          []*Flag // command 也可以有 flags
+	Desc           string
+	handlers       []func(string, *DCommand)
+	paramsHandlers []func(string, *DCommand, ...interface{})
+	flagParamsMap  map[string][]string
 }
 
 type DCommand struct {
-	Commands        []*Command
-	currentCommand  string
-	currentOperator string
+	Commands            []*Command
+	currentCommand      string
+	currentOperator     string
+	currentCustomParams []interface{}
 	// handlers func (operator string, flags map[string][]string)
 }
 
@@ -160,6 +162,34 @@ func (fc *DCommand) Handler(fn func(string, *DCommand)) *DCommand {
 				command.handlers = [](func(string, *DCommand)){}
 			}
 			command.handlers = append(command.handlers, fn)
+			break
+		}
+	}
+	return fc
+}
+
+func (fc *DCommand) WithParamsHandler(fn func(string, *DCommand, ...interface{})) *DCommand {
+	if fc.Commands == nil {
+		fmt.Println("Need to call Command before calling Operator")
+		return fc
+	}
+
+	if len(fc.Commands) == 0 {
+		fmt.Println("There is currently no Command")
+		return fc
+	}
+
+	if fc.currentCommand == "" {
+		fmt.Println("Need to call Command before calling Operator")
+		return fc
+	}
+
+	for _, command := range fc.Commands {
+		if fc.currentCommand == command.Name {
+			if command.handlers == nil {
+				command.paramsHandlers = [](func(string, *DCommand, ...interface{})){}
+			}
+			command.paramsHandlers = append(command.paramsHandlers, fn)
 			break
 		}
 	}
@@ -536,31 +566,46 @@ func (fc *DCommand) Execute(cmd []string) error {
 		}
 	}
 
-	for _, fn := range command.handlers {
-		fn(commandName, fc)
+	if fc.currentCustomParams != nil {
+		for _, fn := range command.paramsHandlers {
+			fn(commandName, fc, fc.currentCustomParams...)
+		}
+	} else {
+		for _, fn := range command.handlers {
+			fn(commandName, fc)
+		}
 	}
 
 	return nil
+}
+
+func (fc *DCommand) ExecuteWithParams(cmd []string, params ...interface{}) error {
+	fc.currentCustomParams = params
+	err := fc.Execute(cmd)
+	fc.currentCustomParams = nil
+	return err
 }
 
 func (fc *DCommand) Command(name string) *DCommand {
 	if fc.Commands == nil {
 		cmd := []*Command{
 			{
-				Name:          name,
-				Operators:     []*Operator{},
-				flagParamsMap: make(map[string][]string),
-				handlers:      []func(string, *DCommand){},
+				Name:           name,
+				Operators:      []*Operator{},
+				flagParamsMap:  make(map[string][]string),
+				handlers:       []func(string, *DCommand){},
+				paramsHandlers: []func(string, *DCommand, ...interface{}){},
 			},
 		}
 		fc.currentCommand = name
 		fc.Commands = cmd
 	} else {
 		fc.Commands = append(fc.Commands, &Command{
-			Name:          name,
-			Operators:     []*Operator{},
-			flagParamsMap: make(map[string][]string),
-			handlers:      []func(string, *DCommand){},
+			Name:           name,
+			Operators:      []*Operator{},
+			flagParamsMap:  make(map[string][]string),
+			handlers:       []func(string, *DCommand){},
+			paramsHandlers: []func(string, *DCommand, ...interface{}){},
 		})
 		fc.currentCommand = name
 	}

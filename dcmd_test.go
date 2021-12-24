@@ -96,6 +96,73 @@ func TestFuckcmd(t *testing.T) {
 	testCmd = "test3 op1 op2 --xxx a b c --yyy d e f g --aaa wuxiao"
 	cmd.Execute(strings.Split(testCmd, " "))
 
+	testCmd = "test2 op1 --xxx a b c d --yyy d e f 7"
+	cmd.Execute(strings.Split(testCmd, " "))
+
+	cmd.Command("test2-1").
+		Operator("op0").
+		Operator("op1").
+		Operator("op2").
+		Flag("xxx").
+		Flag("zzz").
+		Flag("yyy").
+		Handler(func(command string, fc *DCommand) {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test2-1")
+			test.Equal(_cmd.Name, "test2-1")
+			test.Equal(len(_cmd.Operators), 3)
+			test.Equal(_cmd.Operators[0].Name, "op0")
+			test.Equal(len(_cmd.Operators[0].flagParamsMap), 0)
+			test.Equal(_cmd.Operators[1].Name, "op1")
+			test.Equal(len(_cmd.Operators[1].flagParamsMap), 0)
+			test.Equal(_cmd.Operators[2].Name, "op2")
+			test.Equal(len(_cmd.Operators[2].flagParamsMap), 2)
+
+			xxx, ok := _cmd.Operators[2].flagParamsMap["--xxx"]
+			test.Equal(ok, true)
+			test.Equal(len(xxx), 3)
+			fmt.Println("这里的 xxx 是: ", xxx)
+
+			yyy, ok := _cmd.Operators[2].flagParamsMap["--yyy"]
+			test.Equal(ok, true)
+			test.Equal(len(yyy), 4)
+			fmt.Println("这里的 yyy 是: ", yyy)
+		}).
+		WithParamsHandler(func(command string, fc *DCommand, params ...interface{}) {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			for i, p := range params {
+				_i := p.(int)
+				test.Equal(i+1, _i)
+				fmt.Println("这里的参数是: ", _i)
+			}
+
+			test.Equal(command, "test2-1")
+			test.Equal(_cmd.Name, "test2-1")
+			test.Equal(len(_cmd.Operators), 3)
+			test.Equal(_cmd.Operators[0].Name, "op0")
+			test.Equal(len(_cmd.Operators[0].flagParamsMap), 0)
+			test.Equal(_cmd.Operators[1].Name, "op1")
+			test.Equal(len(_cmd.Operators[1].flagParamsMap), 0)
+			test.Equal(_cmd.Operators[2].Name, "op2")
+			test.Equal(len(_cmd.Operators[2].flagParamsMap), 2)
+
+			xxx, ok := _cmd.Operators[2].flagParamsMap["--xxx"]
+			test.Equal(ok, true)
+			test.Equal(len(xxx), 3)
+			fmt.Println("这里的 xxx 是: ", xxx)
+
+			yyy, ok := _cmd.Operators[2].flagParamsMap["--yyy"]
+			test.Equal(ok, true)
+			test.Equal(len(yyy), 4)
+			fmt.Println("这里的 yyy 是: ", yyy)
+		})
+
+	testCmd = "test2-1 op1 op2 --xxx a b c --yyy d e f g --aaa wuxiao"
+	cmd.Execute(strings.Split(testCmd, " "))
+	cmd.ExecuteWithParams(strings.Split(testCmd, " "), 1, 2, 3)
+
 	cmd.Command("chahua").
 		Operator("publish").
 		Flag("add", "a").
