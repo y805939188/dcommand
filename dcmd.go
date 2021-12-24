@@ -413,7 +413,6 @@ func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, opera
 
 	f := fc.GetFlagIfExistInOperatorByOperator(pureFlag, isLone, operator)
 	if f == nil {
-		// return fmt.Errorf("Flag %s does not exist in this operator %s", flag, operator.Name)
 		return nil
 	}
 	if (isLone && f.Long == pureFlag) || (!isLone && f.Short == pureFlag) {
@@ -426,13 +425,13 @@ func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, opera
  * cmd --xxx a b c --yyy d e f
  * cmd a b c --xxx d e f -yyy g h i
  */
-func (fc *DCommand) Execute(cmd []string) {
+func (fc *DCommand) Execute(cmd []string) error {
 
 	commandName := cmd[0]
 	cmd = cmd[1:]
 	command := fc.GetCommandIfExist(commandName)
 	if command == nil {
-		return
+		return fmt.Errorf("command name is nil")
 	}
 	isFlag, _, _ := fc.IsFlag(cmd[0])
 	if isFlag {
@@ -448,8 +447,7 @@ func (fc *DCommand) Execute(cmd []string) {
 				if temporaryFlag != "" {
 					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
 					if err != nil {
-						fmt.Println(err.Error())
-						break
+						return err
 					}
 				}
 				temporaryParams = []string{}
@@ -457,8 +455,7 @@ func (fc *DCommand) Execute(cmd []string) {
 				if i == len(cmd)-1 {
 					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
 					if err != nil {
-						fmt.Println(err.Error())
-						break
+						return err
 					}
 				}
 			} else {
@@ -466,8 +463,7 @@ func (fc *DCommand) Execute(cmd []string) {
 				if i == len(cmd)-1 {
 					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
 					if err != nil {
-						fmt.Println(err.Error())
-						break
+						return err
 					}
 				}
 			}
@@ -493,8 +489,7 @@ func (fc *DCommand) Execute(cmd []string) {
 						if _temporaryFlag != "" {
 							err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
 							if err != nil {
-								fmt.Println(err.Error())
-								// break
+								return err
 							}
 						}
 						_temporaryParams = []string{}
@@ -503,7 +498,7 @@ func (fc *DCommand) Execute(cmd []string) {
 							err := fc.SetFlagParamsForCommand(_temporaryFlag, _temporaryParams, command)
 							if err != nil {
 								fmt.Println(err.Error())
-								break
+								return err
 							}
 						}
 					} else {
@@ -512,7 +507,7 @@ func (fc *DCommand) Execute(cmd []string) {
 							err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
 							if err != nil {
 								fmt.Println(err.Error())
-								// break
+								return err
 							}
 						}
 					}
@@ -523,7 +518,7 @@ func (fc *DCommand) Execute(cmd []string) {
 					err := fc.SetFlagParamsForOperator(temporaryFlag, temporaryParams, fc.GetOperatorIfExistByCommand(temporaryFlag, command))
 					if err != nil {
 						fmt.Println(err.Error())
-						// break
+						return err
 					}
 				}
 
@@ -544,6 +539,8 @@ func (fc *DCommand) Execute(cmd []string) {
 	for _, fn := range command.handlers {
 		fn(commandName, fc)
 	}
+
+	return nil
 }
 
 func (fc *DCommand) Command(name string) *DCommand {
