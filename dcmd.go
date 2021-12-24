@@ -28,18 +28,18 @@ type Command struct {
 	Operators     []*Operator
 	Flags         []*Flag // command 也可以有 flags
 	Desc          string
-	handlers      []func(string, *DCmd)
+	handlers      []func(string, *DCommand)
 	flagParamsMap map[string][]string
 }
 
-type DCmd struct {
+type DCommand struct {
 	Commands        []*Command
 	currentCommand  string
 	currentOperator string
 	// handlers func (operator string, flags map[string][]string)
 }
 
-func (fc *DCmd) Flag(name string, other ...string) *DCmd {
+func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 	if name == "" {
 		fmt.Println("Need a name")
 		return fc
@@ -138,7 +138,7 @@ func (fc *DCmd) Flag(name string, other ...string) *DCmd {
 	return fc
 }
 
-func (fc *DCmd) Handler(fn func(string, *DCmd)) *DCmd {
+func (fc *DCommand) Handler(fn func(string, *DCommand)) *DCommand {
 	if fc.Commands == nil {
 		fmt.Println("Need to call Command before calling Operator")
 		return fc
@@ -157,7 +157,7 @@ func (fc *DCmd) Handler(fn func(string, *DCmd)) *DCmd {
 	for _, command := range fc.Commands {
 		if fc.currentCommand == command.Name {
 			if command.handlers == nil {
-				command.handlers = [](func(string, *DCmd)){}
+				command.handlers = [](func(string, *DCommand)){}
 			}
 			command.handlers = append(command.handlers, fn)
 			break
@@ -166,7 +166,7 @@ func (fc *DCmd) Handler(fn func(string, *DCmd)) *DCmd {
 	return fc
 }
 
-func (fc *DCmd) Operator(name string) *DCmd {
+func (fc *DCommand) Operator(name string) *DCommand {
 	if fc.Commands == nil {
 		fmt.Println("Need to call Command before calling Operator")
 		return fc
@@ -202,7 +202,7 @@ func (fc *DCmd) Operator(name string) *DCmd {
 	return fc
 }
 
-func (fc *DCmd) GetFlagIfExistInCommand(flagName string, isLong bool) []*Flag {
+func (fc *DCommand) GetFlagIfExistInCommand(flagName string, isLong bool) []*Flag {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -227,7 +227,7 @@ func (fc *DCmd) GetFlagIfExistInCommand(flagName string, isLong bool) []*Flag {
 	return res
 }
 
-func (fc *DCmd) GetFlagIfExistInOperatorByCommand(flagName string, isLong bool, command *Command) []*Flag {
+func (fc *DCommand) GetFlagIfExistInOperatorByCommand(flagName string, isLong bool, command *Command) []*Flag {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -258,7 +258,7 @@ func (fc *DCmd) GetFlagIfExistInOperatorByCommand(flagName string, isLong bool, 
 	return res
 }
 
-func (fc *DCmd) GetFlagIfExistInOperatorByOperator(flagName string, isLong bool, operator *Operator) *Flag {
+func (fc *DCommand) GetFlagIfExistInOperatorByOperator(flagName string, isLong bool, operator *Operator) *Flag {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -282,7 +282,7 @@ func (fc *DCmd) GetFlagIfExistInOperatorByOperator(flagName string, isLong bool,
 	return nil
 }
 
-func (fc *DCmd) GetFlagIfExistInOperator(flagName string, isLong bool) []*Flag {
+func (fc *DCommand) GetFlagIfExistInOperator(flagName string, isLong bool) []*Flag {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -313,7 +313,7 @@ func (fc *DCmd) GetFlagIfExistInOperator(flagName string, isLong bool) []*Flag {
 	return res
 }
 
-func (fc *DCmd) GetCommandIfExist(command string) *Command {
+func (fc *DCommand) GetCommandIfExist(command string) *Command {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -326,7 +326,7 @@ func (fc *DCmd) GetCommandIfExist(command string) *Command {
 	return nil
 }
 
-func (fc *DCmd) GetOperatorIfExist(operatorName string) []*Operator {
+func (fc *DCommand) GetOperatorIfExist(operatorName string) []*Operator {
 	if fc.Commands == nil {
 		return nil
 	}
@@ -346,7 +346,7 @@ func (fc *DCmd) GetOperatorIfExist(operatorName string) []*Operator {
 	return res
 }
 
-func (fc *DCmd) GetOperatorIfExistByCommand(operatorName string, command *Command) *Operator {
+func (fc *DCommand) GetOperatorIfExistByCommand(operatorName string, command *Command) *Operator {
 	if command == nil {
 		return nil
 	}
@@ -369,7 +369,7 @@ func (fc *DCmd) GetOperatorIfExistByCommand(operatorName string, command *Comman
 	return nil
 }
 
-func (fc *DCmd) IsFlag(str string) (bool, isLong bool, pureFlag string) {
+func (fc *DCommand) IsFlag(str string) (bool, isLong bool, pureFlag string) {
 	if strings.HasPrefix(str, "--") {
 		isLong = true
 		pureFlag = strings.Replace(str, "--", "", 1)
@@ -385,7 +385,7 @@ func (fc *DCmd) IsFlag(str string) (bool, isLong bool, pureFlag string) {
 	return false, false, ""
 }
 
-func (fc *DCmd) SetFlagParamsForCommand(flag string, params []string, command *Command) error {
+func (fc *DCommand) SetFlagParamsForCommand(flag string, params []string, command *Command) error {
 
 	isFlag, isLone, pureFlag := fc.IsFlag(flag)
 
@@ -404,7 +404,7 @@ func (fc *DCmd) SetFlagParamsForCommand(flag string, params []string, command *C
 	return nil
 }
 
-func (fc *DCmd) SetFlagParamsForOperator(flag string, params []string, operator *Operator) error {
+func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, operator *Operator) error {
 	isFlag, isLone, pureFlag := fc.IsFlag(flag)
 
 	if !isFlag {
@@ -426,7 +426,7 @@ func (fc *DCmd) SetFlagParamsForOperator(flag string, params []string, operator 
  * cmd --xxx a b c --yyy d e f
  * cmd a b c --xxx d e f -yyy g h i
  */
-func (fc *DCmd) Execute(cmd []string) {
+func (fc *DCommand) Execute(cmd []string) {
 
 	commandName := cmd[0]
 	cmd = cmd[1:]
@@ -546,14 +546,14 @@ func (fc *DCmd) Execute(cmd []string) {
 	}
 }
 
-func (fc *DCmd) Command(name string) *DCmd {
+func (fc *DCommand) Command(name string) *DCommand {
 	if fc.Commands == nil {
 		cmd := []*Command{
 			{
 				Name:          name,
 				Operators:     []*Operator{},
 				flagParamsMap: make(map[string][]string),
-				handlers:      []func(string, *DCmd){},
+				handlers:      []func(string, *DCommand){},
 			},
 		}
 		fc.currentCommand = name
@@ -563,7 +563,7 @@ func (fc *DCmd) Command(name string) *DCmd {
 			Name:          name,
 			Operators:     []*Operator{},
 			flagParamsMap: make(map[string][]string),
-			handlers:      []func(string, *DCmd){},
+			handlers:      []func(string, *DCommand){},
 		})
 		fc.currentCommand = name
 	}

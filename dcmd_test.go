@@ -9,14 +9,14 @@ import (
 )
 
 func TestFuckcmd(t *testing.T) {
-	cmd := &DCmd{}
+	cmd := &DCommand{}
 
 	// testCmd := "test1 --xxx a b c --iii 7 8 9 --yyy d e f g --aaa --zzz h i g k --bbb"
 	cmd.Command("test1").
 		Flag("xxx").
 		Flag("yyy").
 		Flag("zzz").
-		Handler(func(command string, fc *DCmd) {
+		Handler(func(command string, fc *DCommand) {
 			// fmt.Println("进来了这里")
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -38,7 +38,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("zzz").
 		Flag("yyy").
-		Handler(func(command string, fc *DCmd) {
+		Handler(func(command string, fc *DCommand) {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test2")
@@ -69,7 +69,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("zzz").
 		Flag("yyy").
-		Handler(func(command string, fc *DCmd) {
+		Handler(func(command string, fc *DCommand) {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test3")
@@ -100,7 +100,7 @@ func TestFuckcmd(t *testing.T) {
 		Operator("publish").
 		Flag("add", "a").
 		Flag("upload", "u").
-		Handler(func(command string, fc *DCmd) {
+		Handler(func(command string, fc *DCommand) {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "chahua")
@@ -132,7 +132,7 @@ func TestFuckcmd(t *testing.T) {
 		Operator("publish").
 		Flag("add", "a").
 		Flag("upload", "u").
-		Handler(func(command string, fc *DCmd) {
+		Handler(func(command string, fc *DCommand) {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "chahua2")
