@@ -28,8 +28,8 @@ type Command struct {
 	Operators      []*Operator
 	Flags          []*Flag // command 也可以有 flags
 	Desc           string
-	handlers       []func(string, *DCommand)
-	paramsHandlers []func(string, *DCommand, ...interface{})
+	handlers       []func(string, *DCommand) error
+	paramsHandlers []func(string, *DCommand, ...interface{}) error
 	flagParamsMap  map[string][]string
 }
 
@@ -38,7 +38,6 @@ type DCommand struct {
 	currentCommand      string
 	currentOperator     string
 	currentCustomParams []interface{}
-	// handlers func (operator string, flags map[string][]string)
 }
 
 func (fc *DCommand) Flag(name string, other ...string) *DCommand {
@@ -140,7 +139,7 @@ func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 	return fc
 }
 
-func (fc *DCommand) Handler(fn func(string, *DCommand)) *DCommand {
+func (fc *DCommand) Handler(fn func(string, *DCommand) error) *DCommand {
 	if fc.Commands == nil {
 		fmt.Println("Need to call Command before calling Operator")
 		return fc
@@ -159,7 +158,7 @@ func (fc *DCommand) Handler(fn func(string, *DCommand)) *DCommand {
 	for _, command := range fc.Commands {
 		if fc.currentCommand == command.Name {
 			if command.handlers == nil {
-				command.handlers = [](func(string, *DCommand)){}
+				command.handlers = [](func(string, *DCommand) error){}
 			}
 			command.handlers = append(command.handlers, fn)
 			break
@@ -168,7 +167,7 @@ func (fc *DCommand) Handler(fn func(string, *DCommand)) *DCommand {
 	return fc
 }
 
-func (fc *DCommand) WithParamsHandler(fn func(string, *DCommand, ...interface{})) *DCommand {
+func (fc *DCommand) WithParamsHandler(fn func(string, *DCommand, ...interface{}) error) *DCommand {
 	if fc.Commands == nil {
 		fmt.Println("Need to call Command before calling Operator")
 		return fc
@@ -187,7 +186,7 @@ func (fc *DCommand) WithParamsHandler(fn func(string, *DCommand, ...interface{})
 	for _, command := range fc.Commands {
 		if fc.currentCommand == command.Name {
 			if command.handlers == nil {
-				command.paramsHandlers = [](func(string, *DCommand, ...interface{})){}
+				command.paramsHandlers = [](func(string, *DCommand, ...interface{}) error){}
 			}
 			command.paramsHandlers = append(command.paramsHandlers, fn)
 			break
@@ -463,103 +462,107 @@ func (fc *DCommand) Execute(cmd []string) error {
 	if command == nil {
 		return fmt.Errorf("command name is nil")
 	}
-	isFlag, _, _ := fc.IsFlag(cmd[0])
-	if isFlag {
-		// 如果第一个字符串就是 flag 的话, 那后续就不能再有任何 operator 了
-		// 就类似 cmd --xxx abc --yyy d e f 这种
-		// 因为在 flg 后面加 operator 的话, 无法分辨出到底是 operator 还是 flag 的 param
-		// 所以如果第一个就是 flag 的话, 可以直接把它作为 command 的 flag
-		temporaryFlag := ""
-		temporaryParams := []string{}
-		for i, str := range cmd {
-			isFlag, _, _ := fc.IsFlag(str)
-			if isFlag {
-				if temporaryFlag != "" {
-					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
-					if err != nil {
-						return err
+
+	if len(cmd) != 0 {
+		// 有可能就一个光杆命令没有 operator 和 flag
+		isFlag, _, _ := fc.IsFlag(cmd[0])
+		if isFlag {
+			// 如果第一个字符串就是 flag 的话, 那后续就不能再有任何 operator 了
+			// 就类似 cmd --xxx abc --yyy d e f 这种
+			// 因为在 flg 后面加 operator 的话, 无法分辨出到底是 operator 还是 flag 的 param
+			// 所以如果第一个就是 flag 的话, 可以直接把它作为 command 的 flag
+			temporaryFlag := ""
+			temporaryParams := []string{}
+			for i, str := range cmd {
+				isFlag, _, _ := fc.IsFlag(str)
+				if isFlag {
+					if temporaryFlag != "" {
+						err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
+						if err != nil {
+							return err
+						}
 					}
-				}
-				temporaryParams = []string{}
-				temporaryFlag = str
-				if i == len(cmd)-1 {
-					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
-					if err != nil {
-						return err
+					temporaryParams = []string{}
+					temporaryFlag = str
+					if i == len(cmd)-1 {
+						err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
+						if err != nil {
+							return err
+						}
 					}
-				}
-			} else {
-				temporaryParams = append(temporaryParams, str)
-				if i == len(cmd)-1 {
-					err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
-					if err != nil {
-						return err
+				} else {
+					temporaryParams = append(temporaryParams, str)
+					if i == len(cmd)-1 {
+						err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			}
-		}
-	} else {
-		temporaryFlag := ""
-		temporaryParams := []string{}
-		temporaryOperator := ""
+		} else {
+			temporaryFlag := ""
+			temporaryParams := []string{}
+			temporaryOperator := ""
 
-		for i, str := range cmd {
-			isFlag, _, _ := fc.IsFlag(str)
-			if isFlag {
-				// 当碰到第一个是 flag 类型的 str 时
-				// 把 cmd 从当前这个 flag 的位置开始截取下来
-				// 然后后面的所有 flag 以及 params 都算作是当前这个 temporaryOperator 的参数
-				_temporaryCmd := cmd[i:]
-				_temporaryFlag := ""
-				_temporaryParams := []string{}
-				for i, _str := range _temporaryCmd {
-					isFlag, _, _ := fc.IsFlag(_str)
+			for i, str := range cmd {
+				isFlag, _, _ := fc.IsFlag(str)
+				if isFlag {
+					// 当碰到第一个是 flag 类型的 str 时
+					// 把 cmd 从当前这个 flag 的位置开始截取下来
+					// 然后后面的所有 flag 以及 params 都算作是当前这个 temporaryOperator 的参数
+					_temporaryCmd := cmd[i:]
+					_temporaryFlag := ""
+					_temporaryParams := []string{}
+					for i, _str := range _temporaryCmd {
+						isFlag, _, _ := fc.IsFlag(_str)
 
-					if isFlag {
-						if _temporaryFlag != "" {
-							err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
-							if err != nil {
-								return err
+						if isFlag {
+							if _temporaryFlag != "" {
+								err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
+								if err != nil {
+									return err
+								}
 							}
-						}
-						_temporaryParams = []string{}
-						_temporaryFlag = _str
-						if i == len(_temporaryCmd)-1 {
-							err := fc.SetFlagParamsForCommand(_temporaryFlag, _temporaryParams, command)
-							if err != nil {
-								fmt.Println(err.Error())
-								return err
+							_temporaryParams = []string{}
+							_temporaryFlag = _str
+							if i == len(_temporaryCmd)-1 {
+								err := fc.SetFlagParamsForCommand(_temporaryFlag, _temporaryParams, command)
+								if err != nil {
+									fmt.Println(err.Error())
+									return err
+								}
 							}
-						}
-					} else {
-						_temporaryParams = append(_temporaryParams, _str)
-						if i == len(_temporaryCmd)-1 {
-							err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
-							if err != nil {
-								fmt.Println(err.Error())
-								return err
+						} else {
+							_temporaryParams = append(_temporaryParams, _str)
+							if i == len(_temporaryCmd)-1 {
+								err := fc.SetFlagParamsForOperator(_temporaryFlag, _temporaryParams, fc.GetOperatorIfExistByCommand(temporaryOperator, command))
+								if err != nil {
+									fmt.Println(err.Error())
+									return err
+								}
 							}
 						}
 					}
-				}
-				break
-			} else {
-				if temporaryFlag != "" && temporaryOperator != "" {
-					err := fc.SetFlagParamsForOperator(temporaryFlag, temporaryParams, fc.GetOperatorIfExistByCommand(temporaryFlag, command))
-					if err != nil {
-						fmt.Println(err.Error())
-						return err
-					}
-				}
-
-				if temporaryFlag != "" {
-					temporaryParams = append(temporaryParams, str)
+					break
 				} else {
-					// 进到这里, 一定是 operator
-					op := fc.GetOperatorIfExistByCommand(str, command)
-					if op != nil {
-						op.Passed = true
-						temporaryOperator = str
+					if temporaryFlag != "" && temporaryOperator != "" {
+						err := fc.SetFlagParamsForOperator(temporaryFlag, temporaryParams, fc.GetOperatorIfExistByCommand(temporaryFlag, command))
+						if err != nil {
+							fmt.Println(err.Error())
+							return err
+						}
+					}
+
+					if temporaryFlag != "" {
+						temporaryParams = append(temporaryParams, str)
+					} else {
+						// 进到这里, 一定是 operator
+						op := fc.GetOperatorIfExistByCommand(str, command)
+						if op != nil {
+							op.Passed = true
+							temporaryOperator = str
+						}
 					}
 				}
 			}
@@ -568,11 +571,17 @@ func (fc *DCommand) Execute(cmd []string) error {
 
 	if fc.currentCustomParams != nil {
 		for _, fn := range command.paramsHandlers {
-			fn(commandName, fc, fc.currentCustomParams...)
+			err := fn(commandName, fc, fc.currentCustomParams...)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		for _, fn := range command.handlers {
-			fn(commandName, fc)
+			err := fn(commandName, fc)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -593,8 +602,8 @@ func (fc *DCommand) Command(name string) *DCommand {
 				Name:           name,
 				Operators:      []*Operator{},
 				flagParamsMap:  make(map[string][]string),
-				handlers:       []func(string, *DCommand){},
-				paramsHandlers: []func(string, *DCommand, ...interface{}){},
+				handlers:       []func(string, *DCommand) error{},
+				paramsHandlers: []func(string, *DCommand, ...interface{}) error{},
 			},
 		}
 		fc.currentCommand = name
@@ -604,8 +613,8 @@ func (fc *DCommand) Command(name string) *DCommand {
 			Name:           name,
 			Operators:      []*Operator{},
 			flagParamsMap:  make(map[string][]string),
-			handlers:       []func(string, *DCommand){},
-			paramsHandlers: []func(string, *DCommand, ...interface{}){},
+			handlers:       []func(string, *DCommand) error{},
+			paramsHandlers: []func(string, *DCommand, ...interface{}) error{},
 		})
 		fc.currentCommand = name
 	}

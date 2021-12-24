@@ -16,7 +16,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("yyy").
 		Flag("zzz").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			// fmt.Println("进来了这里")
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -26,6 +26,7 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(len(_cmd.flagParamsMap), 3)
 			test.Equal(len(_cmd.Flags), 3)
 			fmt.Println("这里的 test 1 的 map 是: ", _cmd.flagParamsMap)
+			return nil
 		})
 
 	testCmd := "test1 --xxx a b c --yyy d e f g --zzz h i g k"
@@ -38,7 +39,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("zzz").
 		Flag("yyy").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test2")
@@ -57,6 +58,7 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(_cmd.Operators[1].Flags[0].Long, "xxx")
 			test.Equal(_cmd.Operators[1].Flags[1].Long, "zzz")
 			test.Equal(_cmd.Operators[1].Flags[2].Long, "yyy")
+			return nil
 		})
 
 	testCmd = "test2 op1 --xxx a b c d --yyy d e f 7"
@@ -69,7 +71,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("zzz").
 		Flag("yyy").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test3")
@@ -91,6 +93,7 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(ok, true)
 			test.Equal(len(yyy), 4)
 			fmt.Println("这里的 yyy 是: ", yyy)
+			return nil
 		})
 
 	testCmd = "test3 op1 op2 --xxx a b c --yyy d e f g --aaa wuxiao"
@@ -106,7 +109,7 @@ func TestFuckcmd(t *testing.T) {
 		Flag("xxx").
 		Flag("zzz").
 		Flag("yyy").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test2-1")
@@ -128,8 +131,9 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(ok, true)
 			test.Equal(len(yyy), 4)
 			fmt.Println("这里的 yyy 是: ", yyy)
+			return nil
 		}).
-		WithParamsHandler(func(command string, fc *DCommand, params ...interface{}) {
+		WithParamsHandler(func(command string, fc *DCommand, params ...interface{}) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			for i, p := range params {
@@ -157,6 +161,7 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(ok, true)
 			test.Equal(len(yyy), 4)
 			fmt.Println("这里的 yyy 是: ", yyy)
+			return nil
 		})
 
 	testCmd = "test2-1 op1 op2 --xxx a b c --yyy d e f g --aaa wuxiao"
@@ -167,7 +172,7 @@ func TestFuckcmd(t *testing.T) {
 		Operator("publish").
 		Flag("add", "a").
 		Flag("upload", "u").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "chahua")
@@ -189,7 +194,7 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(ok, true)
 			test.Equal(add[0], "illustration-x1")
 			test.Equal(add[1], "illustration-x2")
-
+			return nil
 		})
 
 	testCmd = "chahua publish --upload illustration-x3 illustration-x4 --add illustration-x1 illustration-x2"
@@ -199,7 +204,7 @@ func TestFuckcmd(t *testing.T) {
 		Operator("publish").
 		Flag("add", "a").
 		Flag("upload", "u").
-		Handler(func(command string, fc *DCommand) {
+		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "chahua2")
@@ -221,8 +226,43 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(ok, true)
 			test.Equal(add[0], "illustration-x1")
 			test.Equal(add[1], "illustration-x2")
+			return nil
 		})
 
 	testCmd = "chahua2 publish -u illustration-x3 illustration-x4 -a illustration-x1 illustration-x2"
 	cmd.Execute(strings.Split(testCmd, " "))
+
+	cmd.Command("test-return").
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test-return")
+			test.Equal(_cmd.Name, "test-return")
+
+			return fmt.Errorf("1")
+		}).
+		WithParamsHandler(func(command string, fc *DCommand, params ...interface{}) error {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test-return")
+			test.Equal(_cmd.Name, "test-return")
+			str := params[0].(string)
+			test.Equal(str, "2")
+			return fmt.Errorf(str)
+		})
+
+	testCmd = "test-return"
+	err := cmd.Execute(strings.Split(testCmd, " "))
+	if err != nil {
+		test := assert.New(t)
+		fmt.Println("这里的错误是1111 : ", err.Error())
+		test.Equal(err.Error(), "1")
+	}
+
+	err = cmd.ExecuteWithParams(strings.Split(testCmd, " "), "2")
+	if err != nil {
+		test := assert.New(t)
+		fmt.Println("这里的错误是2222 : ", err.Error())
+		test.Equal(err.Error(), "2")
+	}
 }
