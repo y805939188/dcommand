@@ -8,7 +8,7 @@ import (
 type Flag struct {
 	Long          string
 	Short         string
-	Params        map[string][]string
+	Params        []string
 	Desc          string
 	OwnerCommand  *Command
 	OwnerOperator *Operator
@@ -61,7 +61,7 @@ func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 					cmd.Flags = []*Flag{
 						{
 							Long:         name,
-							Params:       make(map[string][]string),
+							Params:       []string{},
 							OwnerCommand: cmd,
 						},
 					}
@@ -77,7 +77,7 @@ func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 				} else {
 					temp := &Flag{
 						Long:         name,
-						Params:       make(map[string][]string),
+						Params:       []string{},
 						OwnerCommand: cmd,
 					}
 					for i, p := range other {
@@ -99,7 +99,7 @@ func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 							operator.Flags = []*Flag{
 								{
 									Long:          name,
-									Params:        make(map[string][]string),
+									Params:        []string{},
 									OwnerOperator: operator,
 								},
 							}
@@ -115,7 +115,7 @@ func (fc *DCommand) Flag(name string, other ...string) *DCommand {
 						} else {
 							temp := &Flag{
 								Long:          name,
-								Params:        make(map[string][]string),
+								Params:        []string{},
 								OwnerOperator: operator,
 							}
 							for i, p := range other {
@@ -427,6 +427,7 @@ func (fc *DCommand) SetFlagParamsForCommand(flag string, params []string, comman
 	for _, f := range flags {
 		if (isLone && f.Long == pureFlag) || (!isLone && f.Short == pureFlag) {
 			f.OwnerCommand.flagParamsMap[flag] = params
+			f.Params = params
 			break
 		}
 	}
@@ -446,6 +447,7 @@ func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, opera
 	}
 	if (isLone && f.Long == pureFlag) || (!isLone && f.Short == pureFlag) {
 		f.OwnerOperator.flagParamsMap[flag] = params
+		f.Params = params
 	}
 	return nil
 }

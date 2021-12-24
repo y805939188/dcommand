@@ -58,12 +58,16 @@ func TestFuckcmd(t *testing.T) {
 			test.Equal(_cmd.Operators[1].Flags[0].Long, "xxx")
 			test.Equal(_cmd.Operators[1].Flags[1].Long, "zzz")
 			test.Equal(_cmd.Operators[1].Flags[2].Long, "yyy")
+			// 因为 xxx 和 yyy 是 op2 的 flag
+			test.Equal(len(_cmd.Operators[1].Flags[0].Params), 0)
+			test.Equal(len(_cmd.Operators[1].Flags[2].Params), 0)
 			return nil
 		})
 
 	testCmd = "test2 op1 --xxx a b c d --yyy d e f 7"
 	cmd.Execute(strings.Split(testCmd, " "))
 
+	// "test3 op1 op2 --xxx a b c --yyy d e f g --aaa wuxiao"
 	cmd.Command("test3").
 		Operator("op0").
 		Operator("op1").
@@ -92,7 +96,16 @@ func TestFuckcmd(t *testing.T) {
 			yyy, ok := _cmd.Operators[2].flagParamsMap["--yyy"]
 			test.Equal(ok, true)
 			test.Equal(len(yyy), 4)
+
 			fmt.Println("这里的 yyy 是: ", yyy)
+
+			test.Equal(_cmd.Operators[2].Flags[0].Long, "xxx")
+			test.Equal(_cmd.Operators[2].Flags[1].Long, "zzz")
+			test.Equal(_cmd.Operators[2].Flags[2].Long, "yyy")
+			test.Equal(len(_cmd.Operators[2].Flags), 3)
+			test.Equal(len(_cmd.Operators[2].Flags[0].Params), 3)
+			test.Equal(len(_cmd.Operators[2].Flags[2].Params), 4)
+
 			return nil
 		})
 
