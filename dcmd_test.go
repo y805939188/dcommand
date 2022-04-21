@@ -278,4 +278,26 @@ func TestFuckcmd(t *testing.T) {
 		fmt.Println("这里的错误是2222 : ", err.Error())
 		test.Equal(err.Error(), "2")
 	}
+
+	testStrCmd := "test-origin I am cmd"
+	cmd.Command("test-origin").
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			originCmd := fc.GetOriginCommand()
+			fmt.Println("这里原始的 cmd 是: ", originCmd)
+			test.Equal(originCmd, testStrCmd)
+			return nil
+		})
+	cmd.ExecuteStr(testStrCmd)
+
+	testStrCmd2 := "test-origin-2 I am cmd 2222"
+	cmd.Command("test-origin-2").
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			originCmd := fc.GetOriginCommand()
+			fmt.Println("这里原始的 cmd 2222 是: ", originCmd)
+			test.Equal(originCmd, testStrCmd2)
+			return nil
+		})
+	cmd.ExecuteStr(testStrCmd2)
 }

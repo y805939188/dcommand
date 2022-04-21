@@ -35,6 +35,7 @@ type Command struct {
 
 type DCommand struct {
 	Commands            []*Command
+	originCommand       string
 	currentCommand      string
 	currentOperator     string
 	currentCustomParams []interface{}
@@ -452,6 +453,10 @@ func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, opera
 	return nil
 }
 
+func (fc *DCommand) GetOriginCommand() string {
+	return fc.originCommand
+}
+
 /**
  * cmd --xxx a b c --yyy d e f
  * cmd a b c --xxx d e f -yyy g h i
@@ -459,8 +464,11 @@ func (fc *DCommand) SetFlagParamsForOperator(flag string, params []string, opera
 func (fc *DCommand) Execute(cmd []string) error {
 
 	commandName := cmd[0]
+	originCmd := strings.Join(cmd, " ")
+	fc.originCommand = originCmd
 	cmd = cmd[1:]
 	command := fc.GetCommandIfExist(commandName)
+
 	if command == nil {
 		return fmt.Errorf("command name is nil")
 	}
@@ -587,7 +595,12 @@ func (fc *DCommand) Execute(cmd []string) error {
 		}
 	}
 
+	fc.originCommand = ""
 	return nil
+}
+
+func (fc *DCommand) ExecuteStr(str string) error {
+	return fc.Execute(strings.Split(str, " "))
 }
 
 func (fc *DCommand) ExecuteWithParams(cmd []string, params ...interface{}) error {
