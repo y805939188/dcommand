@@ -13,11 +13,10 @@ func TestFuckcmd(t *testing.T) {
 
 	// testCmd := "test1 --xxx a b c --iii 7 8 9 --yyy d e f g --aaa --zzz h i g k --bbb"
 	cmd.Command("test1").
-		Flag("xxx").
-		Flag("yyy").
-		Flag("zzz").
+		Flag(&FlagInfo{Name: "xxx"}).
+		Flag(&FlagInfo{Name: "yyy"}).
+		Flag(&FlagInfo{Name: "zzz"}).
 		Handler(func(command string, fc *DCommand) error {
-			// fmt.Println("进来了这里")
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
 			test.Equal(command, "test1")
@@ -36,9 +35,9 @@ func TestFuckcmd(t *testing.T) {
 	cmd.Command("test2").
 		Operator("op1").
 		Operator("op2").
-		Flag("xxx").
-		Flag("zzz").
-		Flag("yyy").
+		Flag(&FlagInfo{Name: "xxx"}).
+		Flag(&FlagInfo{Name: "zzz"}).
+		Flag(&FlagInfo{Name: "yyy"}).
 		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -72,9 +71,9 @@ func TestFuckcmd(t *testing.T) {
 		Operator("op0").
 		Operator("op1").
 		Operator("op2").
-		Flag("xxx").
-		Flag("zzz").
-		Flag("yyy").
+		Flag(&FlagInfo{Name: "xxx"}).
+		Flag(&FlagInfo{Name: "zzz"}).
+		Flag(&FlagInfo{Name: "yyy"}).
 		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -119,9 +118,9 @@ func TestFuckcmd(t *testing.T) {
 		Operator("op0").
 		Operator("op1").
 		Operator("op2").
-		Flag("xxx").
-		Flag("zzz").
-		Flag("yyy").
+		Flag(&FlagInfo{Name: "xxx"}).
+		Flag(&FlagInfo{Name: "zzz"}).
+		Flag(&FlagInfo{Name: "yyy"}).
 		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -183,8 +182,8 @@ func TestFuckcmd(t *testing.T) {
 
 	cmd.Command("chahua").
 		Operator("publish").
-		Flag("add", "a").
-		Flag("upload", "u").
+		Flag(&FlagInfo{Name: "add", Short: "a"}).
+		Flag(&FlagInfo{Name: "upload", Short: "u"}).
 		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -215,8 +214,8 @@ func TestFuckcmd(t *testing.T) {
 
 	cmd.Command("chahua2").
 		Operator("publish").
-		Flag("add", "a").
-		Flag("upload", "u").
+		Flag(&FlagInfo{Name: "add", Short: "a"}).
+		Flag(&FlagInfo{Name: "upload", Short: "u"}).
 		Handler(func(command string, fc *DCommand) error {
 			test := assert.New(t)
 			_cmd := fc.GetCommandIfExist(command)
@@ -300,4 +299,57 @@ func TestFuckcmd(t *testing.T) {
 			return nil
 		})
 	cmd.ExecuteStr(testStrCmd2)
+
+	// testCmd := "test1 --iii 7 8 9 --aaa --zzz h i g k --bbb"
+	cmd.Command("test-default-1").
+		Flag(&FlagInfo{Name: "xxx", Default: []string{"a", "b", "c"}}).
+		Flag(&FlagInfo{Name: "yyy", Short: "y", Default: []string{"d", "e", "f"}}).
+		Flag(&FlagInfo{Name: "zzz"}).
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test-default-1")
+			test.Equal(_cmd.Name, "test-default-1")
+			test.Equal(len(_cmd.Operators), 0)
+			test.Equal(len(_cmd.flagParamsMap), 3)
+			test.Equal(len(_cmd.Flags), 3)
+			fmt.Println("这里的 test-default-1 的 map 是: ", _cmd.flagParamsMap)
+			return nil
+		})
+
+	testCmd = "test-default-1 --iii 7 8 9 --aaa --zzz h i g k --bbb"
+	cmd.Execute(strings.Split(testCmd, " "))
+
+	// testCmd := "test-default-2 op -zzz 7 8 9"
+	cmd.Command("test-default-2").
+		Operator("op").
+		Flag(&FlagInfo{Name: "xxx", Default: []string{"a", "b", "c"}}).
+		Flag(&FlagInfo{Name: "zzz", Default: []string{"1", "2", "3"}}).
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test-default-2")
+			test.Equal(_cmd.Name, "test-default-2")
+			test.Equal(len(_cmd.Operators), 1)
+			test.Equal(_cmd.Operators[0].Name, "op")
+			test.Equal(len(_cmd.Operators[0].flagParamsMap), 2)
+			fmt.Println("这里的 op是: ", _cmd.Operators[0].flagParamsMap)
+			test.Equal(len(_cmd.Operators[0].Flags), 2)
+
+			test.Equal(_cmd.Operators[0].Flags[0].Long, "xxx")
+			test.Equal(_cmd.Operators[0].Flags[1].Long, "zzz")
+
+			flag := fc.GetFlagIfExistInOperatorByOperator("xxx", true, _cmd.Operators[0])
+			test.Equal(flag.Params[0], "a")
+			test.Equal(flag.Params[1], "b")
+			test.Equal(flag.Params[2], "c")
+			flag = fc.GetFlagIfExistInOperatorByOperator("zzz", true, _cmd.Operators[0])
+			test.Equal(flag.Params[0], "7")
+			test.Equal(flag.Params[1], "8")
+			test.Equal(flag.Params[2], "9")
+			return nil
+		})
+
+	testCmd = "test-default-2 op --zzz 7 8 9"
+	cmd.Execute(strings.Split(testCmd, " "))
 }
