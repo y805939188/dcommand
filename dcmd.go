@@ -34,6 +34,7 @@ type Command struct {
 	paramsHandlers []func(string, *DCommand, ...interface{}) error
 	flagParamsMap  map[string][]string
 	// allFlagsMap    map[string]bool
+	invalidOperators []*Operator
 }
 
 type DCommand struct {
@@ -459,7 +460,7 @@ func (fc *DCommand) GetOperatorIfExistByCommand(operatorName string, command *Co
 	return nil
 }
 
-func (fc *DCommand) IsFlag(str string) (bool, isLong bool, pureFlag string) {
+func IsFlag(str string) (bool, isLong bool, pureFlag string) {
 	if strings.HasPrefix(str, "--") {
 		isLong = true
 		pureFlag = strings.Replace(str, "--", "", 1)
@@ -473,6 +474,10 @@ func (fc *DCommand) IsFlag(str string) (bool, isLong bool, pureFlag string) {
 	}
 
 	return false, false, ""
+}
+
+func (fc *DCommand) IsFlag(str string) (bool, isLong bool, pureFlag string) {
+	return IsFlag(str)
 }
 
 func (fc *DCommand) SetFlagParamsForCommand(flag string, params []string, command *Command) error {
