@@ -352,4 +352,27 @@ func TestFuckcmd(t *testing.T) {
 
 	testCmd = "test-default-2 op --zzz 7 8 9"
 	cmd.Execute(strings.Split(testCmd, " "))
+
+	temporaryIndex := 0
+	cmd.Command("test-flag-passed").
+		Operator("op").
+		Flag(&FlagInfo{Name: "xxx"}).
+		Handler(func(command string, fc *DCommand) error {
+			test := assert.New(t)
+			_cmd := fc.GetCommandIfExist(command)
+			test.Equal(command, "test-flag-passed")
+			if temporaryIndex == 0 {
+				test.Equal(_cmd.Operators[0].Flags[0].Passed, true)
+			}
+			if temporaryIndex == 1 {
+				test.Equal(_cmd.Operators[0].Flags[0].Passed, false)
+			}
+			return nil
+		})
+	testCmd = "test-flag-passed op --xxx"
+	cmd.Execute(strings.Split(testCmd, " "))
+	temporaryIndex = 1
+
+	testCmd = "test-flag-passed op"
+	cmd.Execute(strings.Split(testCmd, " "))
 }

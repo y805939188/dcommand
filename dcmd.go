@@ -10,6 +10,7 @@ type Flag struct {
 	Short         string
 	Params        []string
 	Desc          string
+	Passed        bool
 	OwnerCommand  *Command
 	OwnerOperator *Operator
 }
@@ -34,7 +35,7 @@ type Command struct {
 	paramsHandlers []func(string, *DCommand, ...interface{}) error
 	flagParamsMap  map[string][]string
 	// allFlagsMap    map[string]bool
-	invalidOperators []*Operator
+	// invalidOperators []*Operator
 }
 
 type DCommand struct {
@@ -104,6 +105,7 @@ func (fc *DCommand) Flag(flagInfo *FlagInfo) *DCommand {
 				Long:         name,
 				Params:       []string{},
 				OwnerCommand: cmd,
+				Passed:       false,
 			}
 			temp.Short = flagInfo.Short
 			temp.Desc = flagInfo.Desc
@@ -128,6 +130,7 @@ func (fc *DCommand) Flag(flagInfo *FlagInfo) *DCommand {
 					Long:          name,
 					Params:        []string{},
 					OwnerOperator: operator,
+					Passed:        false,
 				}
 				temp.Short = flagInfo.Short
 				temp.Desc = flagInfo.Desc
@@ -581,8 +584,14 @@ func (fc *DCommand) Execute(cmd []string) error {
 			temporaryFlag := ""
 			temporaryParams := []string{}
 			for i, str := range cmd {
-				isFlag, _, _ := fc.IsFlag(str)
+				isFlag, _isLone, _pureFlag := fc.IsFlag(str)
 				if isFlag {
+					if commandName != "" {
+						_flag := fc.GetFlagIfExistInCommand(_pureFlag, _isLone, command)
+						if len(_flag) > 0 {
+							_flag[0].Passed = true
+						}
+					}
 					if temporaryFlag != "" {
 						err := fc.SetFlagParamsForCommand(temporaryFlag, temporaryParams, command)
 						if err != nil {
@@ -624,7 +633,7 @@ func (fc *DCommand) Execute(cmd []string) error {
 					_temporaryFlag := ""
 					_temporaryParams := []string{}
 					for i, _str := range _temporaryCmd {
-						isFlag, _, _ := fc.IsFlag(_str)
+						isFlag, isLone, pureFlag := fc.IsFlag(_str)
 
 						if isFlag {
 							if _temporaryFlag != "" {
@@ -640,6 +649,13 @@ func (fc *DCommand) Execute(cmd []string) error {
 								if err != nil {
 									fmt.Println(err.Error())
 									return err
+								}
+							}
+							if temporaryOperator != "" {
+								_operator := fc.GetOperatorIfExistByCommand(temporaryOperator, command)
+								_flag := fc.GetFlagIfExistInOperatorByOperator(pureFlag, isLone, _operator)
+								if _flag != nil {
+									_flag.Passed = true
 								}
 							}
 						} else {
@@ -681,6 +697,7 @@ func (fc *DCommand) Execute(cmd []string) error {
 	if fc.currentCustomParams != nil {
 		for _, fn := range command.paramsHandlers {
 			err := fn(commandName, fc, fc.currentCustomParams...)
+			fc.fresh()
 			if err != nil {
 				return err
 			}
@@ -688,6 +705,7 @@ func (fc *DCommand) Execute(cmd []string) error {
 	} else {
 		for _, fn := range command.handlers {
 			err := fn(commandName, fc)
+			fc.fresh()
 			if err != nil {
 				return err
 			}
@@ -696,6 +714,24 @@ func (fc *DCommand) Execute(cmd []string) error {
 
 	fc.originCommand = ""
 	return nil
+}
+
+func (fc *DCommand) fresh() {
+	command := fc.GetCommandIfExist(fc.currentCommand)
+	command.flagParamsMap = make(map[string][]string)
+	for _, flag := range command.Flags {
+		flag.Params = []string{}
+		flag.Passed = false
+	}
+
+	for _, operator := range command.Operators {
+		operator.Passed = false
+		operator.flagParamsMap = make(map[string][]string)
+		for _, opFlag := range operator.Flags {
+			opFlag.Passed = false
+			opFlag.Params = []string{}
+		}
+	}
 }
 
 func (fc *DCommand) ExecuteStr(str string) error {
